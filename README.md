@@ -44,7 +44,7 @@ The package can be installed by adding `etfs` to your list of dependencies in `m
 ```elixir
 def deps do
   [
-    {:etfs, "~> 0.1.1"}
+    {:etfs, "~> 0.1.2"}
   ]
 end
 ```
