@@ -12,7 +12,8 @@ defmodule ETFs.Stream do
   def record_count(%__MODULE__{path: path, format: :v3}) do
     with {:ok, f} <- File.open(path, [:read]),
          @fourcc <- IO.binread(f, 4),
-         <<record_count::integer-size(32)>> <- IO.binread(f, 4) do
+         <<record_count::integer-size(32)>> <- IO.binread(f, 4),
+         :ok = File.close(f) do
       {:ok, record_count}
     else
       err -> {:error, err}
@@ -29,19 +30,19 @@ defmodule ETFs.Stream do
         {io, record_count}
       end,
       fn
-        {_io, 0} ->
-          {:halt, []}
+        {io, 0} ->
+          {:halt, io}
 
         {io, records_left} ->
           with <<record_len::integer-size(32)>> <- IO.binread(io, 4),
                record when is_binary(record) <- IO.binread(io, record_len) do
             {[record], {io, records_left - 1}}
           else
-            :eof -> {:halt, []}
-            {:error, _} -> {:halt, []}
+            :eof -> {:halt, io}
+            {:error, _} -> {:halt, io}
           end
       end,
-      fn {io, _} -> File.close(io) end
+      &File.close/1
     )
     |> Stream.map(&:erlang.binary_to_term/1)
   end
@@ -99,8 +100,10 @@ defmodule ETFs.Stream do
         IO.binwrite(io, <<length(toc)::integer-size(32)>>)
         IO.binwrite(io, <<toc_pos::integer-size(64)>>)
 
+        File.close(io)
+
       _set, :halt ->
-        :ok
+        File.close(io)
     end
 
     {{io, 16, []}, collector_fun}
