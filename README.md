@@ -35,6 +35,8 @@ iex> (etfs_file
 # [i, 3, "foo", %{arbitrary: terms}, make_ref(), self()]
 ```
 
+The `ETFs` format also embeds a Table of Contents chunk, and so supports O(1) slicing/element lookup (e.g. `Enum.slice`, `Enum.take`, `Enum.at`, etc.)
+
 ## Installation
 
 The package can be installed by adding `etfs` to your list of dependencies in `mix.exs`:
@@ -42,7 +44,7 @@ The package can be installed by adding `etfs` to your list of dependencies in `m
 ```elixir
 def deps do
   [
-    {:etfs, "~> 0.1.0"}
+    {:etfs, "~> 0.1.1"}
   ]
 end
 ```
