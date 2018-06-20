@@ -108,26 +108,26 @@ defmodule ETFs.Stream do
 end
 
 defimpl Enumerable, for: ETFs.Stream do
-  def reduce(dumpfile, acc, fun) do
-    s = ETFs.Stream.stream_all_records!(dumpfile)
+  def reduce(etfs, acc, fun) do
+    s = ETFs.Stream.stream_all_records!(etfs)
     Enumerable.reduce(s, acc, fun)
   end
 
-  def slice(dumpfile), do:
-    ETFs.Stream.slice_records(dumpfile)
+  def slice(etfs), do:
+    ETFs.Stream.slice_records(etfs)
 
-  def member?(dumpfile, element) do
-    s = ETFs.Stream.stream_all_records!(dumpfile)
+  def member?(etfs, element) do
+    s = ETFs.Stream.stream_all_records!(etfs)
     Enumerable.member?(s, element)
   end
 
-  def count(dumpfile) do
-    ETFs.Stream.record_count(dumpfile)
+  def count(etfs) do
+    ETFs.Stream.record_count(etfs)
   end
 end
 
 defimpl Collectable, for: ETFs.Stream do
-  def into(dumpfile) do
-    ETFs.Stream.collect_into(dumpfile)
+  def into(etfs) do
+    ETFs.Stream.collect_into(etfs)
   end
 end
