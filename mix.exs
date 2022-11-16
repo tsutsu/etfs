@@ -19,13 +19,15 @@ defmodule ETFs.MixProject do
     """
   end
 
-  defp package do [
-    name: :etfs,
-    files: ["config", "lib", "mix.exs", "LICENSE"],
-    maintainers: ["Levi Aul"],
-    licenses: ["MIT"],
-    links: %{"GitHub" => "https://github.com/tsutsu/etfs"}
-  ] end
+  defp package do
+    [
+      name: :etfs,
+      files: ["config", "lib", "mix.exs", "LICENSE"],
+      maintainers: ["Levi Aul"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/tsutsu/etfs"}
+    ]
+  end
 
   def application do
     [

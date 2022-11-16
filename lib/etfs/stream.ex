@@ -55,14 +55,15 @@ defmodule ETFs.Stream do
     <<toc_pos::integer-size(64)>> = IO.binread(io, 8)
 
     f = fn start, count ->
-      first_record_pos_pos = toc_pos + (start * 8)
+      first_record_pos_pos = toc_pos + start * 8
       {:ok, <<first_record_pos::integer-size(64)>>} = :file.pread(io, first_record_pos_pos, 8)
       :file.position(io, {:bof, first_record_pos})
 
-      records = for _i <- (0..(count - 1)) do
-        <<record_len::integer-size(32)>> = IO.binread(io, 4)
-        IO.binread(io, record_len) |> :erlang.binary_to_term
-      end
+      records =
+        for _i <- 0..(count - 1) do
+          <<record_len::integer-size(32)>> = IO.binread(io, 4)
+          IO.binread(io, record_len) |> :erlang.binary_to_term()
+        end
 
       File.close(io)
 
@@ -89,7 +90,7 @@ defmodule ETFs.Stream do
 
       {io, toc_pos, toc}, :done ->
         toc
-        |> Enum.reverse
+        |> Enum.reverse()
         |> Enum.each(fn {pos, _msg_size} ->
           IO.binwrite(io, [
             <<pos::integer-size(64)>>
@@ -116,8 +117,7 @@ defimpl Enumerable, for: ETFs.Stream do
     Enumerable.reduce(s, acc, fun)
   end
 
-  def slice(etfs), do:
-    ETFs.Stream.slice_records(etfs)
+  def slice(etfs), do: ETFs.Stream.slice_records(etfs)
 
   def member?(etfs, element) do
     s = ETFs.Stream.stream_all_records!(etfs)

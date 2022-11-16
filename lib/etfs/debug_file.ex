@@ -1,7 +1,7 @@
 defmodule ETFs.DebugFile do
   @moduledoc false
 
-  defstruct [opened: false, disk_log_name: nil, path: nil]
+  defstruct opened: false, disk_log_name: nil, path: nil
 
   @format_version {0, 1, 0}
 
@@ -15,17 +15,20 @@ defmodule ETFs.DebugFile do
   end
 
   def ensure_opened(%__MODULE__{opened: true} = state), do: state
+
   def ensure_opened(%__MODULE__{opened: false, disk_log_name: disk_log_name, path: path} = state) do
     {:ok, _bytes_lost} = open_log(disk_log_name, path)
     %__MODULE__{state | opened: true}
   end
 
   def flush(%__MODULE__{opened: false}), do: :ok
+
   def flush(%__MODULE__{opened: true, disk_log_name: name}) do
     :disk_log.sync(name)
   end
 
   def close(%__MODULE__{opened: false}), do: :ok
+
   def close(%__MODULE__{opened: true, disk_log_name: name}) do
     :ok = :disk_log.sync(name)
     :disk_log.close(name)
@@ -33,6 +36,7 @@ defmodule ETFs.DebugFile do
 
   def log_term(%__MODULE__{disk_log_name: disk_log_name} = state, term) do
     state = ensure_opened(state)
+
     case :disk_log.log(disk_log_name, term) do
       :ok -> {:ok, state}
       {:error, reason} -> {:error, reason, state}
@@ -52,12 +56,12 @@ defmodule ETFs.DebugFile do
   def stream!(%__MODULE__{disk_log_name: disk_log_name} = state) do
     Stream.resource(
       fn -> {ensure_opened(state), nil} end,
-
       fn {state, cont} ->
-        chunk_to_req = case cont do
-          nil -> :start
-          cont -> cont
-        end
+        chunk_to_req =
+          case cont do
+            nil -> :start
+            cont -> cont
+          end
 
         case :disk_log.chunk(disk_log_name, chunk_to_req) do
           {:error, :no_such_log} ->
@@ -70,7 +74,6 @@ defmodule ETFs.DebugFile do
             {strip_header(logged_terms), {state, cont}}
         end
       end,
-
       fn
         {state, _cont} -> close(state)
         state -> close(state)
@@ -81,9 +84,10 @@ defmodule ETFs.DebugFile do
   ## Helpers
 
   defp open_log(disk_log_name, path, bytes_already_lost \\ 0) do
-    path = path
-    |> resolve_path()
-    |> String.to_charlist()
+    path =
+      path
+      |> resolve_path()
+      |> String.to_charlist()
 
     # ensure dir exists
     File.mkdir_p!(Path.dirname(path))
@@ -94,7 +98,8 @@ defmodule ETFs.DebugFile do
       format: :internal,
       type: :wrap,
       repair: true,
-      size: {1024*1024, 1000}, # max 1GB split into 1000 1MB files
+      # max 1GB split into 1000 1MB files
+      size: {1024 * 1024, 1000},
       notify: false,
       head: {:vsn, @format_version},
       quiet: true,
@@ -138,15 +143,17 @@ defmodule ETFs.DebugFile do
       :filename.basedir(:user_log, "erlang-debug")
     end
   end
+
   defp resolve_path(path), do: path
 
   defp repair_log(log_name, log_options) do
     log_options = Keyword.drop(log_options, :size)
 
-    bytes_lost = case :disk_log.open(log_options) do
-      {:repaired, ^log_name, {:recovered, _good_bytes}, {:badbytes, bad_bytes}} -> bad_bytes
-      _ -> 0
-    end
+    bytes_lost =
+      case :disk_log.open(log_options) do
+        {:repaired, ^log_name, {:recovered, _good_bytes}, {:badbytes, bad_bytes}} -> bad_bytes
+        _ -> 0
+      end
 
     _ = :disk_log.close(log_name)
 
@@ -156,6 +163,6 @@ defmodule ETFs.DebugFile do
   defp strip_header([{:vsn, _} | rest]), do: rest
   defp strip_header(logs), do: logs
 
-  defp upgrade_version(_log_name, unknown_version, @format_version), do:
-    {:error, {:upgrade_failed, :unknown_version, unknown_version}}
+  defp upgrade_version(_log_name, unknown_version, @format_version),
+    do: {:error, {:upgrade_failed, :unknown_version, unknown_version}}
 end
