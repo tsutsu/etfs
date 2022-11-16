@@ -4,7 +4,7 @@ defmodule ETFs.MixProject do
   def project do
     [
       app: :etfs,
-      version: "0.1.3",
+      version: "0.1.4",
       elixir: "~> 1.6",
       description: description(),
       package: package(),
