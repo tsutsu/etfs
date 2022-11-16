@@ -95,7 +95,6 @@ defmodule ETFs.DebugFile do
       type: :wrap,
       repair: true,
       size: {1024*1024, 1000}, # max 1GB split into 1000 1MB files
-      distributed: [],
       notify: false,
       head: {:vsn, @format_version},
       quiet: true,
