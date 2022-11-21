@@ -34,6 +34,27 @@ defmodule ETFs.DebugFile do
     :disk_log.close(name)
   end
 
+  def block(%__MODULE__{opened: true, disk_log_name: name}) do
+    case :disk_log.block(name) do
+      :ok -> :ok
+      {:error, {:blocked_log, ^name}} -> :ok
+    end
+  end
+
+  def block(%__MODULE__{opened: false}) do
+    {:error, :not_opened}
+  end
+
+  def unblock(%__MODULE__{opened: true, disk_log_name: name}) do
+    case :disk_log.unblock(name) do
+      :ok -> :ok
+      {:error, {:not_blocked, ^name}} -> :ok
+      {:error, {:not_blocked_by_pid, ^name}} -> {:error, :not_blocked_by_pid}
+    end
+  end
+
+  def unblock(%__MODULE__{opened: false}), do: :ok
+
   def log_term(%__MODULE__{disk_log_name: disk_log_name} = state, term) do
     state = ensure_opened(state)
 
@@ -53,9 +74,17 @@ defmodule ETFs.DebugFile do
     end
   end
 
-  def stream!(%__MODULE__{disk_log_name: disk_log_name} = state) do
+  def stream!(%__MODULE__{disk_log_name: disk_log_name} = state, block \\ false) do
     Stream.resource(
-      fn -> {ensure_opened(state), nil} end,
+      fn ->
+        opened_state = ensure_opened(state)
+
+        if block do
+          :ok = block(opened_state)
+        end
+
+        {opened_state, nil}
+      end,
       fn {state, cont} ->
         chunk_to_req =
           case cont do
@@ -75,8 +104,13 @@ defmodule ETFs.DebugFile do
         end
       end,
       fn
-        {state, _cont} -> close(state)
-        state -> close(state)
+        {state, _cont} ->
+          unblock(state)
+          close(state)
+
+        state ->
+          unblock(state)
+          close(state)
       end
     )
   end
