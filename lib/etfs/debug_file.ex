@@ -14,11 +14,19 @@ defmodule ETFs.DebugFile do
     %__MODULE__{path: path, disk_log_name: disk_log_name}
   end
 
-  def ensure_opened(%__MODULE__{opened: true} = state), do: state
+  def ensure_opened(state, block \\ false)
 
-  def ensure_opened(%__MODULE__{opened: false, disk_log_name: disk_log_name, path: path} = state) do
+  def ensure_opened(%__MODULE__{opened: true} = state, block) do
+    if block, do: block(state)
+    state
+  end
+
+  def ensure_opened(
+        %__MODULE__{opened: false, disk_log_name: disk_log_name, path: path} = state,
+        block
+      ) do
     {:ok, _bytes_lost} = open_log(disk_log_name, path)
-    %__MODULE__{state | opened: true}
+    ensure_opened(%__MODULE__{state | opened: true}, block)
   end
 
   def flush(%__MODULE__{opened: false}), do: :ok
@@ -33,6 +41,27 @@ defmodule ETFs.DebugFile do
     :ok = :disk_log.sync(name)
     :disk_log.close(name)
   end
+
+  def block(%__MODULE__{opened: true, disk_log_name: name}) do
+    case :disk_log.block(name) do
+      :ok -> :ok
+      {:error, {:blocked_log, ^name}} -> :ok
+    end
+  end
+
+  def block(%__MODULE__{opened: false}) do
+    {:error, :not_opened}
+  end
+
+  def unblock(%__MODULE__{opened: true, disk_log_name: name}) do
+    case :disk_log.unblock(name) do
+      :ok -> :ok
+      {:error, {:not_blocked, ^name}} -> :ok
+      {:error, {:not_blocked_by_pid, ^name}} -> {:error, :not_blocked_by_pid}
+    end
+  end
+
+  def unblock(%__MODULE__{opened: false}), do: :ok
 
   def log_term(%__MODULE__{disk_log_name: disk_log_name} = state, term) do
     state = ensure_opened(state)
@@ -55,7 +84,7 @@ defmodule ETFs.DebugFile do
 
   def stream!(%__MODULE__{disk_log_name: disk_log_name} = state) do
     Stream.resource(
-      fn -> {ensure_opened(state), nil} end,
+      fn -> {ensure_opened(state, true), nil} end,
       fn {state, cont} ->
         chunk_to_req =
           case cont do
@@ -75,8 +104,13 @@ defmodule ETFs.DebugFile do
         end
       end,
       fn
-        {state, _cont} -> close(state)
-        state -> close(state)
+        {state, _cont} ->
+          unblock(state)
+          close(state)
+
+        state ->
+          unblock(state)
+          close(state)
       end
     )
   end
