@@ -14,11 +14,19 @@ defmodule ETFs.DebugFile do
     %__MODULE__{path: path, disk_log_name: disk_log_name}
   end
 
-  def ensure_opened(%__MODULE__{opened: true} = state), do: state
+  def ensure_opened(state, block \\ false)
 
-  def ensure_opened(%__MODULE__{opened: false, disk_log_name: disk_log_name, path: path} = state) do
+  def ensure_opened(%__MODULE__{opened: true} = state, block) do
+    if block, do: block(state)
+    state
+  end
+
+  def ensure_opened(
+        %__MODULE__{opened: false, disk_log_name: disk_log_name, path: path} = state,
+        block
+      ) do
     {:ok, _bytes_lost} = open_log(disk_log_name, path)
-    %__MODULE__{state | opened: true}
+    ensure_opened(%__MODULE__{state | opened: true}, block)
   end
 
   def flush(%__MODULE__{opened: false}), do: :ok
@@ -74,17 +82,9 @@ defmodule ETFs.DebugFile do
     end
   end
 
-  def stream!(%__MODULE__{disk_log_name: disk_log_name} = state, block \\ false) do
+  def stream!(%__MODULE__{disk_log_name: disk_log_name} = state) do
     Stream.resource(
-      fn ->
-        opened_state = ensure_opened(state)
-
-        if block do
-          :ok = block(opened_state)
-        end
-
-        {opened_state, nil}
-      end,
+      fn -> {ensure_opened(state, true), nil} end,
       fn {state, cont} ->
         chunk_to_req =
           case cont do
