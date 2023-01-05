@@ -83,6 +83,8 @@ defmodule ETFs.DebugFile do
   end
 
   def stream!(%__MODULE__{disk_log_name: disk_log_name} = state) do
+    open_status = state.opened
+
     Stream.resource(
       fn -> {ensure_opened(state, true), nil} end,
       fn {state, cont} ->
@@ -106,11 +108,21 @@ defmodule ETFs.DebugFile do
       fn
         {state, _cont} ->
           unblock(state)
-          close(state)
+
+          if open_status do
+            ensure_opened(state)
+          else
+            close(state)
+          end
 
         state ->
           unblock(state)
-          close(state)
+
+          if open_status do
+            ensure_opened(state)
+          else
+            close(state)
+          end
       end
     )
   end
