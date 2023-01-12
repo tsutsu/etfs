@@ -82,9 +82,16 @@ defmodule ETFs.DebugFile do
     end
   end
 
-  def stream!(%__MODULE__{disk_log_name: disk_log_name} = state) do
+  def stream!(disk_log_name, path) do
     Stream.resource(
-      fn -> {ensure_opened(state, true), nil} end,
+      fn ->
+        debug_file =
+          open_async(disk_log_name, path)
+          |> ensure_opened(true)
+
+        {debug_file, nil}
+      end,
+
       fn {state, cont} ->
         chunk_to_req =
           case cont do
@@ -103,6 +110,7 @@ defmodule ETFs.DebugFile do
             {strip_header(logged_terms), {state, cont}}
         end
       end,
+
       fn
         {state, _cont} ->
           unblock(state)
